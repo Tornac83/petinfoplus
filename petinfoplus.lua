@@ -35,6 +35,11 @@ require 'ffxi.targets'
 require 'ffxi.enums'
 require 'ffxi.recast'
 
+--print(TargetEntityId.ClaimServerId)
+--print(player.ServerId)
+--TargetName = TargetEntityId.Name
+--TargetHealth = TargetEntityId.HealthPercent
+
 function GetEntityByServerId(id)
     for x = 0, 2303 do
         -- Get the entity..
@@ -71,15 +76,16 @@ ashita.register_event('incoming_packet', function(id, size, packet)
 			
 			actorId = struct.unpack('I', packet, 0x05 + 1)
 				if pet.ServerId == actorId then
-					TargetId = ashita.bits.unpack_be(packet, 150, 32);
-					if TargetId ~= pet.ServerId then
-						ability = GetEntityByServerId(TargetId)
+					TargetServerId = ashita.bits.unpack_be(packet, 150, 32);
+					if TargetServerId ~= pet.ServerId then
+						TargetEntityId = GetEntityByServerId(TargetServerId)
 					end
-					--print(ability.Name)
-					--print(ability.HealthPercent)
-					--TargetName = ability.Name
-					--TargetHealth = ability.HealthPercent
-					--print( "%X %d", ability.Name, ability.HealthPercent)			
+				end
+				if TargetServerId == actorId then
+					TargetTargetServerId = ashita.bits.unpack_be(packet, 150, 32);
+					if TargetTargetServerId ~= TargetServerId  then
+						TargetTargetEntityId = GetEntityByServerId(TargetTargetServerId)
+					end
 				end
 			end
 		end
@@ -89,8 +95,8 @@ end);
 
 
 --local r = AshitaCore:GetResourceManager();
---local ability = r:GetItemById(8193);
---print(ability.Name[0]);
+--local TargetEntityId = r:GetItemById(8193);
+--print(TargetEntityId.Name[0]);
 
 WindowY = 100
 
@@ -159,17 +165,23 @@ ashita.register_event('render', function()
     imgui.ProgressBar(pettp / 3000, -1, 14, tostring(pettp));
     imgui.PopStyleColor(2);
 	
-	if ability ~= nil then
-		TargetName = ability.Name
-		TargetHealth = ability.HealthPercent
+	if TargetEntityId ~= nil then
+		TargetName = TargetEntityId.Name
+		TargetHealth = TargetEntityId.HealthPercent
+	end
+	
+	if TargetTargetEntityId ~= nil then
+		TargetTargetName = TargetTargetEntityId.Name
+		TargetTargetHealth = TargetTargetEntityId.HealthPercent
 	end
 	
 	if (pet.Status == 1 and TargetHealth == 0) then
 		TargetName = AshitaCore:GetDataManager():GetTarget():GetTargetName()
 		TargetHealth = AshitaCore:GetDataManager():GetTarget():GetTargetHealthPercent()
+		TargetTargetEntityId = nil
 	end
 		
-	if (TargetHealth ~= 0 and pet.Status == 1 and ability ~= nil) then
+	if (TargetHealth ~= 0 and pet.Status == 1 and TargetEntityId ~= nil) then
 		WindowY = 139
 		imgui.Separator();
 		imgui.PushStyleColor(ImGuiCol_PlotHistogram, 1.0, 0.61, 0.61, 0.6);
@@ -180,9 +192,27 @@ ashita.register_event('render', function()
 		imgui.PushStyleColor(ImGuiCol_Text, 1.0, 1.0, 1.0, 1.0);
 		imgui.ProgressBar(tonumber(TargetHealth) / 100, -1, 14);
 		imgui.PopStyleColor(2);
+		
+		if (TargetHealth ~= 0 and pet.Status == 1 and TargetTargetEntityId ~= nil) then
+			WindowY = 178
+			imgui.Separator();
+			imgui.PushStyleColor(ImGuiCol_PlotHistogram, 1.0, 0.61, 0.61, 0.6);
+			imgui.Text('Target-Target:');
+			imgui.SameLine();
+			imgui.Text(TargetTargetName);
+
+			imgui.PushStyleColor(ImGuiCol_Text, 1.0, 1.0, 1.0, 1.0);
+			imgui.ProgressBar(tonumber(TargetTargetHealth) / 100, -1, 14);
+			imgui.PopStyleColor(2);
+		else
+			WindowY = 139
+		end
+		
 	else
 		WindowY = 100
 	end
     
+
+	
     imgui.End();
 end);
